@@ -137,7 +137,6 @@ async function syncAndProcessMessages(openKfId, token) {
   const productList = products.map(p => `${p.id}（${p.product_name}）`).join('、');
 
   for (const msg of msgList) {
-      console.log('msg:', JSON.stringify(msg));
     if (msg.msgtype !== 'text' || msg.origin !== 3) continue;
     const text   = msg.text?.content?.trim();
     const userId = msg.external_userid;
@@ -399,23 +398,23 @@ function extractXmlTag(xml, tag) {
 app.get('/setup', async (req, res) => {
   try {
     const token = await getWxAccessToken();
-    const body = {
-      open_kfid: process.env.WECHAT_KF_ID,
-      userid_list: ['RenKaiLing']
-    };
-    console.log('sending body:', JSON.stringify(body));
     const result = await fetch(
       `https://qyapi.weixin.qq.com/cgi-bin/kf/servicer/add?access_token=${token}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
+        body: JSON.stringify({
+          open_kfid: process.env.WECHAT_KF_ID,
+          userid_list: ['RenKaiLing']
+        })
       }
     );
     const text = await result.text();
-    console.log('response:', text);
     res.send(text);
   } catch(e) {
     res.status(500).send(e.message);
   }
 });
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
