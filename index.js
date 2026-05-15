@@ -293,6 +293,7 @@ ${text}
 7. 订单号或取货码已在数据库存在时：valid=false，说明哪个重复了
 8. 来件和寄件产品总数不匹配时：valid=false，说明哪个产品数量对不上
 9. 只能使用产品列表里有的产品ID
+11. 如果只有一个来件单且只有一个收件人，自动把来件产品全部分配给该收件人，不需要客户再填寄件产品
 10. 只返回 JSON，不要 markdown 代码块`;
 
   const res = await fetch(
@@ -335,7 +336,9 @@ function buildOrder(data, userId) {
 
 function buildConfirmPreview(data) {
   const codes = (data.incoming || []).map(i => i.express_code).join('、');
-  const lines = ['📋 订单确认', '', `订单号：${codes}`];
+  const lines = ['📋 订单确认', ''];
+  if (data.created_by) lines.push(`填表人：${data.created_by}`);
+  lines.push(`订单号：${codes}`);
   (data.incoming || []).forEach((inc, i) => {
     if (data.incoming.length > 1) lines.push(`\n来件单 ${i + 1}：${inc.express_code}（取货码：${inc.pickup_code}）`);
     else lines.push(`取货码：${inc.pickup_code}`);
