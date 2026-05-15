@@ -354,19 +354,23 @@ async function getWxAccessToken() {
 async function createSession(userId, openKfId) {
   const token = await getWxAccessToken();
   if (!token) return;
-  const res = await fetch(
-    `https://qyapi.weixin.qq.com/cgi-bin/kf/session/create?access_token=${token}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        open_kfid: openKfId,
-        external_userid: userId
-      })
-    }
-  );
-  const data = await res.json();
-  console.log('create_session:', data);
+  try {
+    const res = await fetch(
+      `https://qyapi.weixin.qq.com/cgi-bin/kf/session/create?access_token=${token}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          open_kfid: openKfId,
+          external_userid: userId
+        })
+      }
+    );
+    const text = await res.text();
+    console.log('create_session:', text);
+  } catch(e) {
+    console.log('create_session error (ignored):', e.message);
+  }
 }
 
 async function sendWechatMsg(toUser, openKfId, content) {
