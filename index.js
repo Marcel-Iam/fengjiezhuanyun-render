@@ -252,28 +252,48 @@ ${currentDataStr}
 客户最新消息：
 ${text}
 
-请返回以下 JSON 格式，不要有其他文字：
+严格按以下 JSON 格式返回，不要有任何其他文字或 markdown：
 {
   "valid": false,
   "ready_to_submit": false,
-  "error_reply": "用口语中文告诉客户还需要提供什么，或者哪里有问题",
+  "error_reply": "用口语中文说明缺少什么或哪里有问题，信息完整时留空",
   "partial_data": {
-    "created_by": "",
-    "incoming": [],
-    "outgoing": []
+    "created_by": "填表人称呼，没有则空字符串",
+    "incoming": [
+      {
+        "express_code": "订单号，必填",
+        "pickup_code": "取货码，必填",
+        "products": [
+          { "product_id": "产品ID（来自产品列表）", "product_name": "产品名称", "quantity": 数量 }
+        ]
+      }
+    ],
+    "outgoing": [
+      {
+        "name": "收件人姓名",
+        "phone": "联系电话",
+        "address": "收件地址",
+        "products": [
+          { "product_id": "产品ID", "product_name": "产品名称", "quantity": 数量 }
+        ],
+        "notes": ""
+      }
+    ]
   },
   "data": null
 }
 
 规则：
-- 把客户新消息里的信息合并进已有信息，不要丢弃之前收集到的内容
-- 信息完整（有订单号、取货码、至少一个收件人含姓名/电话/地址）且来件和寄件产品总数匹配时：valid=true，ready_to_submit=true，data 填完整数据
-- 信息不完整时：valid=false，error_reply 说清楚还缺什么，partial_data 填已收集到的内容
-- 产品无法识别先模糊匹配，实在不确定才询问
-- 同一次或已有订单号/取货码重复时说明哪个重复了
-- 来件和寄件产品总数不匹配时说明哪个产品数量对不上
-- 只能用产品列表里有的产品
-- 只返回 JSON，不要 markdown 代码块`;
+1. 把客户新消息里的信息合并进已有信息，不要丢弃之前收集到的内容
+2. partial_data 始终填入已收集到的所有内容（即使信息不完整）
+3. 信息完整条件：有订单号、取货码、至少一个收件人（含姓名/电话/地址）、来件和寄件产品总数匹配
+4. 信息完整时：valid=true，ready_to_submit=true，data 填与 partial_data 相同的完整数据，error_reply 留空
+5. 信息不完整时：valid=false，ready_to_submit=false，data=null，error_reply 说清楚还缺什么
+6. 产品先模糊匹配产品列表，实在无法确认才询问
+7. 订单号或取货码已在数据库存在时：valid=false，说明哪个重复了
+8. 来件和寄件产品总数不匹配时：valid=false，说明哪个产品数量对不上
+9. 只能使用产品列表里有的产品ID
+10. 只返回 JSON，不要 markdown 代码块`;
 
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent?key=${process.env.GEMINI_API_KEY}`,
