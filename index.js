@@ -286,7 +286,7 @@ ${text}
 规则：
 1. 把客户新消息里的信息合并进已有信息，不要丢弃之前收集到的内容
 2. partial_data 始终填入已收集到的所有内容（即使信息不完整）
-3. 信息完整条件：有订单号、取货码、至少一个收件人（含姓名/电话/地址）、来件和寄件产品总数匹配
+3. 信息完整条件：有填表人称呼、有订单号、取货码、至少一个收件人（含姓名/电话/地址）、来件和寄件产品总数匹配
 4. 信息完整时：valid=true，ready_to_submit=true，data 填与 partial_data 相同的完整数据，error_reply 留空
 5. 信息不完整时：valid=false，ready_to_submit=false，data=null，error_reply 说清楚还缺什么
 6. 产品先模糊匹配产品列表，实在无法确认才询问
