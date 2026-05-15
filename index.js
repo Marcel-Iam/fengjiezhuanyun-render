@@ -290,6 +290,7 @@ ${text}
   const data = await res.json();
   const raw = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
   try {
+  console.log('Gemini raw:', raw.substring(0, 300));
     return JSON.parse(raw.replace(/```json|```/g, '').trim());
   } catch (e) {
     console.error('Gemini parse failed:', raw);
