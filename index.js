@@ -149,6 +149,7 @@ async function syncAndProcessMessages(openKfId, token) {
   const productList = products.map(p => `${p.id}（${p.product_name}）`).join('、');
 
   for (const msg of msgList) {
+      console.log('msg:', JSON.stringify(msg));
     if (msg.msgtype !== 'text' || msg.origin !== 3) continue;
     const text   = msg.text?.content?.trim();
     const userId = msg.external_userid;
