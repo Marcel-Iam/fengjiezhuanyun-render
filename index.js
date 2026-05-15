@@ -367,8 +367,8 @@ async function ensureSessionActive(userId, openKfId) {
     const stateData = await stateRes.json();
     console.log('service_state:', stateData);
 
-    // 只有状态 0（未处理）才需要转为智能助手接待（状态 1）
-    if (stateData.service_state === 0) {
+    // 状态 0（未处理）或 2（待接入池）都转为智能助手接待（状态 1）
+    if (stateData.service_state === 0 || stateData.service_state === 2) {
       const transRes = await fetch(
         `https://qyapi.weixin.qq.com/cgi-bin/kf/service_state/trans?access_token=${token}`,
         {
