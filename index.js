@@ -157,6 +157,8 @@ async function syncAndProcessMessages(openKfId, token) {
 // 用户消息处理（状态机）
 // ============================================================
 
+await createSession(userId, openKfId);
+
 async function handleUserMessage(text, userId, openKfId, productList, existingCodes) {
   const stateKey = `state_${userId}`;
 
@@ -334,6 +336,24 @@ async function getWxAccessToken() {
   cachedToken = data.access_token;
   tokenExpiry = Date.now() + 7000 * 1000;
   return cachedToken;
+}
+
+async function createSession(userId, openKfId) {
+  const token = await getWxAccessToken();
+  if (!token) return;
+  const res = await fetch(
+    `https://qyapi.weixin.qq.com/cgi-bin/kf/session/create?access_token=${token}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        open_kfid: openKfId,
+        external_userid: userId
+      })
+    }
+  );
+  const data = await res.json();
+  console.log('create_session:', data);
 }
 
 async function sendWechatMsg(toUser, openKfId, content) {
