@@ -21,7 +21,7 @@ const app = express();
 app.use(express.text({ type: 'text/xml' }));
 app.use(express.text({ type: 'application/xml' }));
 
-const STATE_TTL = 30 * 60 * 1000; // 30分钟
+const STATE_TTL = 5 * 60 * 1000; // 5分钟
 
 // 内存状态存储（简单版，单实例够用）
 const userStates = new Map();
@@ -294,6 +294,7 @@ ${text}
 8. 来件和寄件产品总数不匹配时：valid=false，说明哪个产品数量对不上
 9. 只能使用产品列表里有的产品ID
 11. 如果只有一个来件单且只有一个收件人，自动把来件产品全部分配给该收件人，不需要客户再填寄件产品
+12. 如果客户说要修改、更改、变更已有订单，不要尝试处理，直接回复：修改订单请通过以下链接操作：https://marcel-iam.github.io/fengjiezhuanyun/ ，在页面上方输入订单号即可查找和修改。
 10. 只返回 JSON，不要 markdown 代码块`;
 
   const res = await fetch(
