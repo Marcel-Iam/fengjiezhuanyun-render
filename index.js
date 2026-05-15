@@ -173,7 +173,7 @@ async function handleUserMessage(text, userId, openKfId, productList, existingCo
   const stateKey = `state_${userId}`;
 
   // 确保会话处于服务中状态
-  await createSession(userId, openKfId);
+  await ensureSessionActive(userId, openKfId);
 
   // 取消指令
   if (['取消', '重新来', '重置', '算了'].some(w => text.includes(w))) {
@@ -351,27 +351,41 @@ async function getWxAccessToken() {
   return cachedToken;
 }
 
-async function createSession(userId, openKfId) {
+async function ensureSessionActive(userId, openKfId) {
   const token = await getWxAccessToken();
   if (!token) return;
   try {
-    // 把会话转给接待人员，使会话进入"服务中"状态
-    const res = await fetch(
-      `https://qyapi.weixin.qq.com/cgi-bin/kf/service/trans_session?access_token=${token}`,
+    // 查询当前会话状态
+    const stateRes = await fetch(
+      `https://qyapi.weixin.qq.com/cgi-bin/kf/service_state/get?access_token=${token}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          open_kfid: openKfId,
-          external_userid: userId,
-          servicer_userid: 'RenKaiLing'
-        })
+        body: JSON.stringify({ open_kfid: openKfId, external_userid: userId })
       }
     );
-    const text = await res.text();
-    console.log('trans_session:', text);
+    const stateData = await stateRes.json();
+    console.log('service_state:', stateData);
+
+    // 只有状态 0（未处理）才需要转为智能助手接待（状态 1）
+    if (stateData.service_state === 0) {
+      const transRes = await fetch(
+        `https://qyapi.weixin.qq.com/cgi-bin/kf/service_state/trans?access_token=${token}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            open_kfid: openKfId,
+            external_userid: userId,
+            service_state: 1
+          })
+        }
+      );
+      const transData = await transRes.json();
+      console.log('trans_state:', transData);
+    }
   } catch(e) {
-    console.log('trans_session error (ignored):', e.message);
+    console.log('ensureSessionActive error (ignored):', e.message);
   }
 }
 
