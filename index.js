@@ -404,7 +404,7 @@ app.get('/setup', async (req, res) => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          open_kfid: process.env.WECHAT_KF_ID,
+          open_kfid: 'wkeoiMTQAAYavnZ_GbjEy0ywMr4sZkug',
           userid_list: ['RenKaiLing']
         })
       }
