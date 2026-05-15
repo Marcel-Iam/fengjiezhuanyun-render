@@ -220,9 +220,10 @@ async function handleUserMessage(text, userId, openKfId, productList, existingCo
   }
 
   if (result.ready_to_submit) {
-    const preview = buildConfirmPreview(result.data);
+    const finalData = result.data || result.partial_data;
+    const preview = buildConfirmPreview(finalData);
     await sendWechatMsg(userId, openKfId, preview + '\n\n回复"确认"提交，回复"取消"重新来。');
-    userStates.set(stateKey, { data: result.data, awaiting_confirm: true, last_updated: Date.now() });
+    userStates.set(stateKey, { data: finalData, awaiting_confirm: true, last_updated: Date.now() });
     setTimeout(() => userStates.delete(stateKey), STATE_TTL);
   }
 }
@@ -290,7 +291,6 @@ ${text}
   const data = await res.json();
   const raw = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
   try {
-  console.log('Gemini raw:', raw.substring(0, 300));
     return JSON.parse(raw.replace(/```json|```/g, '').trim());
   } catch (e) {
     console.error('Gemini parse failed:', raw);
@@ -368,18 +368,28 @@ async function ensureSessionActive(userId, openKfId) {
     const stateData = await stateRes.json();
     console.log('service_state:', stateData);
 
-    // 状态 0（未处理）或 2（待接入池）都转为智能助手接待（状态 1）
-    if (stateData.service_state === 0 || stateData.service_state === 2) {
+    const state = stateData.service_state;
+    let targetState = null;
+    let body = { open_kfid: openKfId, external_userid: userId };
+
+    if (state === 0) {
+      // 未处理 → 智能助手接待
+      targetState = 1;
+      body.service_state = 1;
+    } else if (state === 2) {
+      // 待接入池 → 人工接待
+      targetState = 3;
+      body.service_state = 3;
+      body.servicer_userid = 'RenKaiLing';
+    }
+
+    if (targetState !== null) {
       const transRes = await fetch(
         `https://qyapi.weixin.qq.com/cgi-bin/kf/service_state/trans?access_token=${token}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            open_kfid: openKfId,
-            external_userid: userId,
-            service_state: 1
-          })
+          body: JSON.stringify(body)
         }
       );
       const transData = await transRes.json();
