@@ -149,7 +149,6 @@ async function syncAndProcessMessages(openKfId, token) {
   const productList = products.map(p => `${p.id}（${p.product_name}）`).join('、');
 
   for (const msg of msgList) {
-      console.log('msg:', JSON.stringify(msg));
     if (msg.msgtype !== 'text' || msg.origin !== 3) continue;
     const text   = msg.text?.content?.trim();
     const userId = msg.external_userid;
@@ -356,21 +355,23 @@ async function createSession(userId, openKfId) {
   const token = await getWxAccessToken();
   if (!token) return;
   try {
+    // 把会话转给接待人员，使会话进入"服务中"状态
     const res = await fetch(
-      `https://qyapi.weixin.qq.com/cgi-bin/kf/session/create?access_token=${token}`,
+      `https://qyapi.weixin.qq.com/cgi-bin/kf/service/trans_session?access_token=${token}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           open_kfid: openKfId,
-          external_userid: userId
+          external_userid: userId,
+          servicer_userid: 'RenKaiLing'
         })
       }
     );
     const text = await res.text();
-    console.log('create_session:', text);
+    console.log('trans_session:', text);
   } catch(e) {
-    console.log('create_session error (ignored):', e.message);
+    console.log('trans_session error (ignored):', e.message);
   }
 }
 
