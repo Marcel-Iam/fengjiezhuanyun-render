@@ -95,8 +95,12 @@ async function syncAndProcessMessages(openKfId, token) {
   const accessToken = await getWxAccessToken();
   if (!accessToken) return;
 
-  const cursorKey = `cursor_${openKfId}`;
-  const cursor = userStates.get(cursorKey) || '';
+  // 从 Worker API 读取 cursor（持久化，重启不丢）
+  let cursor = '';
+  try {
+    const cr = await fetch(`${process.env.WORKER_URL}/api/cursor?key=${openKfId}`);
+    if (cr.ok) { const cd = await cr.json(); cursor = cd.cursor || ''; }
+  } catch(e) {}
 
   const res = await fetch(
     `https://qyapi.weixin.qq.com/cgi-bin/kf/sync_msg?access_token=${accessToken}`,
@@ -109,7 +113,15 @@ async function syncAndProcessMessages(openKfId, token) {
 
   const data = await res.json();
   if (data.errcode !== 0) { console.error('sync_msg failed:', data); return; }
-  if (data.next_cursor) userStates.set(cursorKey, data.next_cursor);
+  if (data.next_cursor) {
+    try {
+      await fetch(`${process.env.WORKER_URL}/api/cursor`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: openKfId, cursor: data.next_cursor })
+      });
+    } catch(e) {}
+  }
 
   const msgList = data.msg_list || [];
   if (!msgList.length) return;
@@ -159,6 +171,9 @@ async function syncAndProcessMessages(openKfId, token) {
 
 async function handleUserMessage(text, userId, openKfId, productList, existingCodes) {
   const stateKey = `state_${userId}`;
+
+  // 确保会话处于服务中状态
+  await createSession(userId, openKfId);
 
   // 取消指令
   if (['取消', '重新来', '重置', '算了'].some(w => text.includes(w))) {
@@ -334,6 +349,24 @@ async function getWxAccessToken() {
   cachedToken = data.access_token;
   tokenExpiry = Date.now() + 7000 * 1000;
   return cachedToken;
+}
+
+async function createSession(userId, openKfId) {
+  const token = await getWxAccessToken();
+  if (!token) return;
+  const res = await fetch(
+    `https://qyapi.weixin.qq.com/cgi-bin/kf/session/create?access_token=${token}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        open_kfid: openKfId,
+        external_userid: userId
+      })
+    }
+  );
+  const data = await res.json();
+  console.log('create_session:', data);
 }
 
 async function sendWechatMsg(toUser, openKfId, content) {
