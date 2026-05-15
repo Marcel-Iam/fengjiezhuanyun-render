@@ -92,6 +92,7 @@ app.post('/wx', async (req, res) => {
 // ============================================================
 
 async function syncAndProcessMessages(openKfId, token) {
+    console.log('msg:', JSON.stringify(msg));
   const accessToken = await getWxAccessToken();
   if (!accessToken) return;
 
