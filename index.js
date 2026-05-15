@@ -88,20 +88,24 @@ app.post('/wx', async (req, res) => {
 });
 
 app.get('/setup', async (req, res) => {
-  const token = await getWxAccessToken();
-  const result = await fetch(
-    `https://qyapi.weixin.qq.com/cgi-bin/kf/account/add_servicer?access_token=${token}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        open_kfid: process.env.WECHAT_KF_ID,
-        userid_list: ['RenKaiLing']  // 替换成你的企业微信 userid
-      })
-    }
-  );
-  const data = await result.json();
-  res.json(data);
+  try {
+    const token = await getWxAccessToken();
+    const result = await fetch(
+      `https://qyapi.weixin.qq.com/cgi-bin/kf/account/add_servicer?access_token=${token}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          open_kfid: process.env.WECHAT_KF_ID,
+          userid_list: ['RenKaiLing']
+        })
+      }
+    );
+    const text = await result.text();
+    res.send(text);
+  } catch(e) {
+    res.status(500).send(e.message);
+  }
 });
 
 // ============================================================
