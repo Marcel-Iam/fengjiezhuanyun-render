@@ -269,6 +269,7 @@ async function parseWithState(text, productList, existingCodes, currentData, sav
   const savedNameStr = savedName ? `客户上次使用的填表人称呼是：${savedName}，如果本次没有提供填表人称呼，自动使用这个名字。` : '';
 
   const existingCodesStr = existingCodes.length > 0 ? existingCodes.join('、') : '无';
+console.log('existingCodes:', existingCodesStr.substring(0, 200));
 
   const prompt = `你是一个转运订单助手，负责通过多轮对话收集订单信息。
 
