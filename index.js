@@ -21,7 +21,7 @@ const app = express();
 app.use(express.text({ type: 'text/xml' }));
 app.use(express.text({ type: 'application/xml' }));
 
-const STATE_TTL = 5 * 60 * 1000; // 5分钟
+const STATE_TTL = 30 * 60 * 1000; // 30分钟
 
 // 内存状态存储（简单版，单实例够用）
 const userStates = new Map();
@@ -212,7 +212,17 @@ async function handleUserMessage(text, userId, openKfId, productList, existingCo
 
   if (!result.valid) {
     if (result.partial_data) {
-      userStates.set(stateKey, { data: result.partial_data, last_updated: Date.now() });
+      // 保护：如果 Gemini 把已有的 incoming 丢掉了，用旧状态补回
+      const merged = result.partial_data;
+      if (state && state.incoming && state.incoming.length > 0) {
+        if (!merged.incoming || merged.incoming.length === 0) {
+          merged.incoming = state.incoming;
+        }
+      }
+      if (state && state.created_by && !merged.created_by) {
+        merged.created_by = state.created_by;
+      }
+      userStates.set(stateKey, { data: merged, last_updated: Date.now() });
       setTimeout(() => userStates.delete(stateKey), STATE_TTL);
     }
     await sendWechatMsg(userId, openKfId, result.error_reply);
@@ -293,10 +303,11 @@ ${text}
 7. 订单号或取货码已在数据库存在时：valid=false，说明哪个重复了
 8. 来件和寄件产品总数不匹配时：valid=false，说明哪个产品数量对不上
 9. 只能使用产品列表里有的产品ID
+10. 只返回 JSON，不要 markdown 代码块
 11. 如果只有一个来件单且只有一个收件人，自动把来件产品全部分配给该收件人，不需要客户再填寄件产品
-12. 如果客户说要修改、更改、变更已有订单，不要尝试处理，直接回复：修改订单请通过以下链接操作：https://marcel-iam.github.io/fengjiezhuanyun/ ，在页面上方输入订单号即可查找和修改。
-13. 如果客户发来的新消息里包含订单号，且与已有 partial_data 里的订单号不同，用新消息的信息完全替换旧信息，不要合并。
-10. 只返回 JSON，不要 markdown 代码块`;
+12. 如果客户说要修改、更改、变更已有订单，不要尝试处理，直接回复：修改订单请通过以下链接操作：https://marcel-iam.github.io/fengjiezhuanyun/ ，在页面上方输入订单号即可查找和修改
+13. 如果客户发来的新消息里包含订单号，且与已有 partial_data 里的订单号不同，用新消息的信息完全替换旧信息，不要合并
+14. 数据库中已有的订单号和取货码列表只用于检查重复，当前对话 partial_data 里的订单号不算已存在，客户可以继续使用`;
 
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent?key=${process.env.GEMINI_API_KEY}`,
