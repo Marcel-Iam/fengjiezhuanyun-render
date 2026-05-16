@@ -196,7 +196,7 @@ async function handleUserMessage(text, userId, openKfId, productList, existingCo
   const state = stateEntry?.data || null;
 
   // 待确认状态下用户回复"确认"
-  if (stateEntry?.awaiting_confirm && ['确认', '是', 'yes', '对', '好'].some(w => text.includes(w))) {
+  if (stateEntry?.awaiting_confirm && (text.trim() === '确认' || text.trim() === 'yes')) {
     const order = buildOrder(state, userId);
     try {
       const r = await fetch(`${process.env.WORKER_URL}/api/orders`, {
@@ -287,10 +287,11 @@ ${productList || '暂无产品信息'}
 数据库中已有的订单号和取货码（不能重复）：
 ${existingCodesStr}
 
-    信息格式说明：客户发来的信息可能用①②或数字编号分段，①②等编号用于区分不同的来件单或收件人，请严格按编号分组提取信息，不要跨组混合。
 ${currentDataStr}
 
 ${savedNameStr}
+
+信息格式说明：客户发来的信息可能用①②或数字编号分段，①②等编号用于区分不同的来件单或收件人，请严格按编号分组提取信息，不要跨组混合。
 
 客户最新消息：
 ${text}
@@ -380,13 +381,11 @@ function buildOrder(data, userId) {
 }
 
 function buildConfirmPreview(data) {
-  const codes = (data.incoming || []).map(i => i.express_code).join('、');
   const lines = ['📋 订单确认', ''];
   if (data.created_by) lines.push(`填表人：${data.created_by}`);
-  lines.push(`订单号：${codes}`);
+  lines.push('');
   (data.incoming || []).forEach((inc, i) => {
-    if (data.incoming.length > 1) lines.push(`\n来件单 ${i + 1}：${inc.express_code}（取货码：${inc.pickup_code}）`);
-    else lines.push(`取货码：${inc.pickup_code}`);
+    lines.push(`来件单 ${i + 1}：${inc.express_code}（取货码：${inc.pickup_code}）`);
     (inc.products || []).forEach(p => lines.push(`  ${p.product_name} × ${p.quantity}`));
   });
   if ((data.outgoing || []).length > 0) {
