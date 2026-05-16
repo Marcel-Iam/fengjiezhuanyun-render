@@ -262,7 +262,7 @@ async function handleUserMessage(text, userId, openKfId, productList, existingCo
     const finalData = result.data || result.partial_data;
     const preview = buildConfirmPreview(finalData);
     await sendWechatMsg(userId, openKfId, preview);
-    await sendWechatMsg(userId, openKfId, '回复"确认"提交，回复"取消"重新来。如需修改，请复制上面的内容手动修改后重新发送。');
+    await sendWechatMsg(userId, openKfId, '回复"确认"提交，回复"取消"重新开始。如需修改，请复制上面的内容，修改后重新发送。');
     userStates.set(stateKey, { data: finalData, awaiting_confirm: true, last_updated: Date.now() });
     setTimeout(() => userStates.delete(stateKey), STATE_TTL);
   }
