@@ -223,6 +223,15 @@ async function handleUserMessage(text, userId, openKfId, productList, existingCo
     return;
   }
 
+  // 代码层面检查重复订单号（不依赖 Gemini）
+  const codePattern = /\b(\d{5,10})\b/g;
+  const mentionedCodes = text.match(codePattern) || [];
+  const duplicateCodes = mentionedCodes.filter(code => existingCodes.includes(code));
+  if (duplicateCodes.length > 0) {
+    await sendWechatMsg(userId, openKfId, `订单号 ${duplicateCodes.join('、')} 已经在数据库中存在，请确认是否填错了。`);
+    return;
+  }
+
   const result = await parseWithState(text, productList, existingCodes, state, savedName);
 
   if (!result) {
@@ -269,7 +278,6 @@ async function parseWithState(text, productList, existingCodes, currentData, sav
   const savedNameStr = savedName ? `客户上次使用的填表人称呼是：${savedName}，如果本次没有提供填表人称呼，自动使用这个名字。` : '';
 
   const existingCodesStr = existingCodes.length > 0 ? existingCodes.join('、') : '无';
-console.log('existingCodes:', existingCodesStr.substring(0, 200));
 
   const prompt = `你是一个转运订单助手，负责通过多轮对话收集订单信息。
 
