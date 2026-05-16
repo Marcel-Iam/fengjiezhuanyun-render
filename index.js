@@ -300,14 +300,13 @@ ${text}
 4. 信息完整时：valid=true，ready_to_submit=true，data 填与 partial_data 相同的完整数据，error_reply 留空
 5. 信息不完整时：valid=false，ready_to_submit=false，data=null，error_reply 说清楚还缺什么
 6. 产品先模糊匹配产品列表，实在无法确认才询问
-7. 订单号或取货码已在数据库存在时：valid=false，说明哪个重复了
+7. 订单号或取货码重复检查：只对照"数据库中已有的订单号和取货码"那个列表，列表里有才算重复。列表里没有就不算重复，不要自己猜测或质疑
 8. 来件和寄件产品总数不匹配时：valid=false，说明哪个产品数量对不上
 9. 只能使用产品列表里有的产品ID
 10. 只返回 JSON，不要 markdown 代码块
 11. 如果只有一个来件单且只有一个收件人，自动把来件产品全部分配给该收件人，不需要客户再填寄件产品
 12. 如果客户说要修改、更改、变更已有订单，不要尝试处理，直接回复：修改订单请通过以下链接操作：https://marcel-iam.github.io/fengjiezhuanyun/ ，在页面上方输入订单号即可查找和修改
-13. 如果客户发来的新消息里包含订单号，且与已有 partial_data 里的订单号不同，用新消息的信息完全替换旧信息，不要合并
-14. 数据库中已有的订单号和取货码列表只用于检查重复，当前对话 partial_data 里的订单号不算已存在，客户可以继续使用`;
+13. 如果客户发来的新消息里包含订单号，且与已有 partial_data 里的订单号不同，用新消息的信息完全替换旧信息，不要合并`;
 
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent?key=${process.env.GEMINI_API_KEY}`,
