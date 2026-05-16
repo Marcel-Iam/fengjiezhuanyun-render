@@ -175,6 +175,16 @@ async function handleUserMessage(text, userId, openKfId, productList, existingCo
   // 确保会话处于服务中状态
   await ensureSessionActive(userId, openKfId);
 
+  // 读取客户上次使用的填表人名字
+  let savedName = null;
+  try {
+    const nr = await fetch(`${process.env.WORKER_URL}/api/customer_name?external_userid=${userId}`);
+    if (nr.ok) {
+      const nd = await nr.json();
+      savedName = nd.created_by || null;
+    }
+  } catch(e) {}
+
   // 取消指令
   if (['取消', '重新来', '重置', '算了'].some(w => text.includes(w))) {
     userStates.delete(stateKey);
@@ -196,6 +206,16 @@ async function handleUserMessage(text, userId, openKfId, productList, existingCo
       });
       if (!r.ok) throw new Error(`API error ${r.status}`);
       userStates.delete(stateKey);
+      // 保存客户填表人名字
+      if (order.created_by && order.created_by !== '微信客户') {
+        try {
+          const res = await fetch(`${process.env.WORKER_URL}/api/customer_name`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ external_userid: userId, created_by: order.created_by })
+          });
+        } catch(e) {}
+      }
       await sendWechatMsg(userId, openKfId, `✅ 订单已提交！\n订单号：${order.incoming.map(i => i.express_code).join('、')}`);
     } catch (e) {
       await sendWechatMsg(userId, openKfId, '提交失败，请稍后再试。');
@@ -203,7 +223,7 @@ async function handleUserMessage(text, userId, openKfId, productList, existingCo
     return;
   }
 
-  const result = await parseWithState(text, productList, existingCodes, state);
+  const result = await parseWithState(text, productList, existingCodes, state, savedName);
 
   if (!result) {
     await sendWechatMsg(userId, openKfId, '解析出错，请稍后再试。');
@@ -242,10 +262,11 @@ async function handleUserMessage(text, userId, openKfId, productList, existingCo
 // Gemini 状态机 Parse
 // ============================================================
 
-async function parseWithState(text, productList, existingCodes, currentData) {
+async function parseWithState(text, productList, existingCodes, currentData, savedName) {
   const currentDataStr = currentData
     ? `目前已收集到的信息：\n${JSON.stringify(currentData, null, 2)}`
     : '目前还没有收集到任何信息。';
+  const savedNameStr = savedName ? `客户上次使用的填表人称呼是：${savedName}，如果本次没有提供填表人称呼，自动使用这个名字。` : '';
 
   const existingCodesStr = existingCodes.length > 0 ? existingCodes.join('、') : '无';
 
@@ -258,6 +279,8 @@ ${productList || '暂无产品信息'}
 ${existingCodesStr}
 
 ${currentDataStr}
+
+${savedNameStr}
 
 客户最新消息：
 ${text}
