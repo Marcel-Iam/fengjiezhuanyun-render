@@ -283,7 +283,7 @@ async function handleUserMessage(text, userId, openKfId, productList, existingCo
           if (d.order.external_userid === userId) {
             const existingOrder = d.order;
             const preview = buildConfirmPreview(existingOrder);
-            await sendWechatMsg(userId, openKfId, `检测到订单号 ${code} 已存在，切换为修改模式。\n\n以下是当前订单信息：`);
+            await sendWechatMsg(userId, openKfId, `检测到订单号 ${code} 已存在，切换为修改模式。\n\n以下是当前系统记录的原有订单信息：`);
             await sendWechatMsg(userId, openKfId, preview);
             await sendWechatMsg(userId, openKfId, '请复制上面整个信息，手动修改需要调整的内容，然后发送给我。\n回复"取消"退出修改模式。');
             userStates.set(stateKey, {
