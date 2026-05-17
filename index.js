@@ -195,8 +195,55 @@ async function handleUserMessage(text, userId, openKfId, productList, existingCo
   const stateEntry = userStates.get(stateKey);
   const state = stateEntry?.data || null;
 
+  // 修改模式下收到新信息
+  if (stateEntry?.edit_mode) {
+    if (text.trim() === '取消') {
+      userStates.delete(stateKey);
+      await sendWechatMsg(userId, openKfId, '已取消修改，可以重新开始。');
+      return;
+    }
+    // 把新信息当成完整订单处理，解析后进入确认流程（edit_data）
+    const editResult = await parseWithState(text, productList, [], null, savedName);
+    if (!editResult || !editResult.valid || !editResult.ready_to_submit) {
+      const errMsg = editResult?.error_reply || '无法识别修改内容，请重新复制原始信息并修改后发送。';
+      await sendWechatMsg(userId, openKfId, errMsg);
+      return;
+    }
+    const editData = editResult.data || editResult.partial_data;
+    const preview = buildConfirmPreview(editData);
+    await sendWechatMsg(userId, openKfId, preview);
+    await sendWechatMsg(userId, openKfId, '回复"确认"提交修改，回复"取消"重新开始。如需再次修改，请复制上面内容修改后重发。');
+    userStates.set(stateKey, {
+      awaiting_confirm: true,
+      edit_mode: true,
+      edit_order_id: stateEntry.edit_order_id,
+      data: editData,
+      last_updated: Date.now()
+    });
+    setTimeout(() => userStates.delete(stateKey), STATE_TTL);
+    return;
+  }
+
   // 待确认状态下用户回复"确认"
   if (stateEntry?.awaiting_confirm && (text.trim() === '确认' || text.trim() === 'yes')) {
+    if (stateEntry?.edit_mode && stateEntry?.edit_order_id) {
+      // 修改模式：UPDATE 现有订单
+      const updatedOrder = { ...state, external_userid: userId };
+      try {
+        const r = await fetch(`${process.env.WORKER_URL}/api/orders/${encodeURIComponent(stateEntry.edit_order_id)}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updatedOrder)
+        });
+        if (!r.ok) throw new Error(`API error ${r.status}`);
+        userStates.delete(stateKey);
+        await sendWechatMsg(userId, openKfId, `✅ 订单已修改！\n订单号：${(state.incoming || []).map(i => i.express_code).join('、')}`);
+      } catch (e) {
+        await sendWechatMsg(userId, openKfId, '修改失败，请稍后再试。');
+      }
+      return;
+    }
+
     const order = buildOrder(state, userId);
     try {
       const r = await fetch(`${process.env.WORKER_URL}/api/orders`, {
@@ -223,13 +270,34 @@ async function handleUserMessage(text, userId, openKfId, productList, existingCo
     return;
   }
 
-  // 代码层面检查重复订单号（不依赖 Gemini）
+  // 代码层面检查重复订单号
   const codePattern = /\b(\d{5,10})\b/g;
   const mentionedCodes = text.match(codePattern) || [];
   const duplicateCodes = mentionedCodes.filter(code => existingCodes.includes(code));
   if (duplicateCodes.length > 0) {
-    await sendWechatMsg(userId, openKfId, `订单号 ${duplicateCodes.join('、')} 已经在数据库中存在，请确认是否填错了。`);
-    return;
+    for (const code of duplicateCodes) {
+      try {
+        const r = await fetch(`${process.env.WORKER_URL}/api/orders/by-code?code=${code}`);
+        const d = await r.json();
+        if (d.found) {
+          if (d.order.external_userid === userId) {
+            const existingOrder = d.order;
+            const preview = buildConfirmPreview(existingOrder);
+            await sendWechatMsg(userId, openKfId, `检测到订单号 ${code} 已存在，切换为修改模式。\n\n以下是当前订单信息：\n\n${preview}`);
+            await sendWechatMsg(userId, openKfId, '请复制上面整个信息，手动修改需要调整的内容，然后发送给我。\n回复"取消"重新开始。');
+            userStates.set(stateKey, {
+              edit_mode: true,
+              edit_order_id: existingOrder.id,
+              last_updated: Date.now()
+            });
+            setTimeout(() => userStates.delete(stateKey), STATE_TTL);
+          } else {
+            await sendWechatMsg(userId, openKfId, `发现重复订单号 ${code}，但该订单为其他微信账号提交。为确保用户信息安全，请切换至该微信账号提交修改。`);
+          }
+          return;
+        }
+      } catch(e) {}
+    }
   }
 
   const result = await parseWithState(text, productList, existingCodes, state, savedName);
@@ -380,6 +448,7 @@ function buildOrder(data, userId) {
     source: 'wechat',
     incoming: data.incoming || [],
     outgoing: data.outgoing || [],
+    external_userid: userId || null,
   };
 }
 
